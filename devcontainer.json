@@ -1,0 +1,29 @@
+//devcontainer.json
+{
+    "name": "develop-default",
+  
+    // Update the 'dockerComposeFile' list if you have more compose files or use different names.
+    "dockerComposeFile": "docker-compose.yml",
+  
+    // The 'service' property is the name of the service for the container that VS Code should
+    // use. Update this value and .devcontainer/docker-compose.yml to the real service name.
+    "service": "devcontainer",
+  
+    // The 'workspaceFolder' property is the path VS Code should open by default when
+    // connected. Corresponds to a volume mount in .devcontainer/docker-compose.yml
+    "workspaceFolder": "/workspace",
+    
+    "customizations": {
+      "vscode": {
+        "extensions": [
+          "ms-python.python",
+          "ms-toolsai.jupyter",
+          "ms-toolsai.jupyter-keymap",
+          "ms-vscode-remote.remote-containers"
+        ]
+      }
+    },
+  
+    "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}"
+  
+  }
