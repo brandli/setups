@@ -2,7 +2,7 @@ import mlflow
 import git
 from typing import Optional, Dict, Any
 
-class MLflowGitTracker:
+class GitFlowTracker:
     """Utility class to link MLflow experiments with git commits."""
     
     def __init__(self, experiment_name: str, repo_path: str = "."):
@@ -80,10 +80,10 @@ class MLflowGitTracker:
         return run
 
 def example_usage():
-    """Example of how to use the MLflowGitTracker."""
+    """Example of how to use the GitFlowTracker."""
     
     # Initialize the tracker
-    tracker = MLflowGitTracker("my_experiment")
+    tracker = GitFlowTracker("my_experiment")
     
     # Start a run with git tracking
     with tracker.start_run(run_name="example_run"):
