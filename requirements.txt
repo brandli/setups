@@ -15,3 +15,4 @@ ipywidgets
 scikit-learn
 
 dvc
+dvc-s3
