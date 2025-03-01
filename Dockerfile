@@ -18,6 +18,9 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Add your alias to .bashrc
+RUN echo 'alias slinky="kubectl --namespace=slurm exec -it statefulsets/slurm-controller -- bash --login"' >> ~/.bashrc
+
 # Copy the actual code
 COPY . /workspace
 
