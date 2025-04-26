@@ -13,6 +13,23 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Install specific SQLite version to fix DVC issue
+RUN apt-get update && \
+    apt-get install -y build-essential && \
+    wget https://www.sqlite.org/2023/sqlite-autoconf-3440000.tar.gz && \
+    tar -xzf sqlite-autoconf-3440000.tar.gz && \
+    cd sqlite-autoconf-3440000 && \
+    ./configure && \
+    make && \
+    make install && \
+    cd .. && \
+    rm -rf sqlite-autoconf-3440000 sqlite-autoconf-3440000.tar.gz && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Update ldconfig to use the new SQLite library
+RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/local.conf && ldconfig
+
 # (1) Copy the base requirements file into the container and install dependencies
 COPY ../1-requirements-base.txt .
 RUN pip install --no-cache-dir -r 1-requirements-base.txt

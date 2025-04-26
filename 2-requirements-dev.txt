@@ -4,5 +4,5 @@ ipywidgets
 
 scikit-learn
 
-dvc==2.30.0 
+dvc
 dvc-s3
