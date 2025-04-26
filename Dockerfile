@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:2.7.0-cuda12.6-cudnn9-devel
+FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-devel
 
 # Set the working directory in the container
 WORKDIR /workspace
