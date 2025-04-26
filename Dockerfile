@@ -9,7 +9,7 @@ ENV PYTHONPATH=/workspace
 
 # Install git, libgit2, and other dependencies
 RUN apt-get update && \
-    apt-get install -y libgit2-dev git && \
+    apt-get install -y wget libgit2-dev git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
