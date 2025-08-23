@@ -39,18 +39,20 @@ jobs:
         # Get the branch name and remove 'refs/heads/' prefix
         BRANCH_NAME=${GITHUB_REF#refs/heads/}
         
-        # Replace any invalid Docker tag characters with hyphens
-        CLEAN_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9._-]/-/g')
-        
-        # Check if branch name contains a slash (name/tag format)
-        if [[ "$CLEAN_BRANCH" == *"/"* ]]; then
+        # Check if branch name contains a slash (name/tag format) BEFORE cleaning
+        if [[ "$BRANCH_NAME" == *"/"* ]]; then
           # Split on the first slash: name/tag -> name:tag
-          IMAGE_NAME_PART=$(echo "$CLEAN_BRANCH" | cut -d'/' -f1)
-          TAG_PART=$(echo "$CLEAN_BRANCH" | cut -d'/' -f2-)
-          FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ github.repository_owner }}/${IMAGE_NAME_PART}"
-          IMAGE_TAG="$TAG_PART"
+          IMAGE_NAME_PART=$(echo "$BRANCH_NAME" | cut -d'/' -f1)
+          TAG_PART=$(echo "$BRANCH_NAME" | cut -d'/' -f2-)
+          # Clean the parts separately
+          CLEAN_IMAGE_NAME=$(echo "$IMAGE_NAME_PART" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          CLEAN_TAG=$(echo "$TAG_PART" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ github.repository_owner }}/${CLEAN_IMAGE_NAME}"
+          IMAGE_TAG="$CLEAN_TAG"
         else
-          # Use branch name as tag with default image name
+          # Use repository name as image name with branch as tag
+          # Replace any invalid Docker tag characters with hyphens
+          CLEAN_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9._-]/-/g')
           FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
           IMAGE_TAG="$CLEAN_BRANCH"
         fi
