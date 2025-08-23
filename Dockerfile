@@ -92,28 +92,46 @@ RUN sed '/^gevent==/d' /opt/odoo/src/odoo/requirements.txt > /tmp/requirements-n
     /opt/odoo/venv/bin/pip install -r /tmp/requirements-no-gevent.txt && \
     /opt/odoo/venv/bin/pip install 'gevent>=22.8.0'
 
-# Create minimal Odoo configuration template
-RUN echo "[options]" > /opt/odoo/odoo.conf.template && \
-    echo "# Database settings - override with environment variables" >> /opt/odoo/odoo.conf.template && \
-    echo "db_host = \$DB_HOST" >> /opt/odoo/odoo.conf.template && \
-    echo "db_port = \$DB_PORT" >> /opt/odoo/odoo.conf.template && \
-    echo "db_user = \$DB_USER" >> /opt/odoo/odoo.conf.template && \
-    echo "db_password = \$DB_PASSWORD" >> /opt/odoo/odoo.conf.template && \
-    echo "" >> /opt/odoo/odoo.conf.template && \
-    echo "# Odoo settings" >> /opt/odoo/odoo.conf.template && \
-    echo "addons_path = /opt/odoo/src/odoo/addons,/opt/odoo/custom-addons" >> /opt/odoo/odoo.conf.template && \
-    echo "data_dir = /opt/odoo/data" >> /opt/odoo/odoo.conf.template && \
-    echo "logfile = /var/log/odoo/odoo.log" >> /opt/odoo/odoo.conf.template && \
-    echo "log_level = \$LOG_LEVEL" >> /opt/odoo/odoo.conf.template && \
-    echo "workers = \$WORKERS" >> /opt/odoo/odoo.conf.template && \
-    echo "max_cron_threads = \$MAX_CRON_THREADS" >> /opt/odoo/odoo.conf.template && \
-    echo "" >> /opt/odoo/odoo.conf.template && \
-    echo "# Security - DO NOT set admin password in config file" >> /opt/odoo/odoo.conf.template && \
-    echo "# Set ODOO_ADMIN_PASSWD environment variable instead" >> /opt/odoo/odoo.conf.template && \
-    echo "# admin_passwd = " >> /opt/odoo/odoo.conf.template
+# Create a simple entrypoint script that handles environment variables but allows args
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+# Set default values for environment variables\n\
+export DB_HOST=${DB_HOST:-db}\n\
+export DB_PORT=${DB_PORT:-5432}\n\
+export DB_USER=${DB_USER:-odoo}\n\
+export DB_PASSWORD=${DB_PASSWORD:-}\n\
+export LOG_LEVEL=${LOG_LEVEL:-info}\n\
+export WORKERS=${WORKERS:-0}\n\
+export MAX_CRON_THREADS=${MAX_CRON_THREADS:-1}\n\
+\n\
+# Activate virtual environment\n\
+source /opt/odoo/venv/bin/activate\n\
+\n\
+# If no arguments provided, use default Odoo startup\n\
+if [ $# -eq 0 ]; then\n\
+    set -- /opt/odoo/src/odoo/odoo-bin \\\n\
+        --db_host="$DB_HOST" \\\n\
+        --db_port="$DB_PORT" \\\n\
+        --db_user="$DB_USER" \\\n\
+        --db_password="$DB_PASSWORD" \\\n\
+        --addons-path="/opt/odoo/src/odoo/addons,/opt/odoo/custom-addons" \\\n\
+        --data-dir="/opt/odoo/data" \\\n\
+        --log-level="$LOG_LEVEL" \\\n\
+        --workers="$WORKERS" \\\n\
+        --max-cron-threads="$MAX_CRON_THREADS"\n\
+fi\n\
+\n\
+# Execute the command\n\
+exec "$@"' > /opt/odoo/docker-entrypoint.sh \
+    && chmod +x /opt/odoo/docker-entrypoint.sh
 
 # Expose port
 EXPOSE 8069
+
+# Set the entrypoint and default command
+ENTRYPOINT ["/opt/odoo/docker-entrypoint.sh"]
+CMD ["/opt/odoo/src/odoo/odoo-bin", "--addons-path=/opt/odoo/src/odoo/addons,/opt/odoo/custom-addons", "--data-dir=/opt/odoo/data"]
 
 # Development stage - final dev image
 FROM dev-base AS development
@@ -139,32 +157,8 @@ RUN /opt/odoo/venv/bin/pip install \
     pytest \
     coverage
 
-# Create startup script for development
-RUN echo '#!/bin/bash\n\
-\n\
-# Set default values for environment variables\n\
-export DB_HOST=${DB_HOST:-db}\n\
-export DB_PORT=${DB_PORT:-5432}\n\
-export DB_USER=${DB_USER:-odoo}\n\
-export DB_PASSWORD=${DB_PASSWORD:-}\n\
-export LOG_LEVEL=${LOG_LEVEL:-info}\n\
-export WORKERS=${WORKERS:-0}\n\
-export MAX_CRON_THREADS=${MAX_CRON_THREADS:-1}\n\
-\n\
-# Generate config from template with environment variable substitution\n\
-envsubst < /opt/odoo/odoo.conf.template > /opt/odoo/odoo.conf\n\
-\n\
-# Set admin password from environment if provided\n\
-if [ -n "$ODOO_ADMIN_PASSWD" ]; then\n\
-    echo "admin_passwd = $ODOO_ADMIN_PASSWD" >> /opt/odoo/odoo.conf\n\
-fi\n\
-\n\
-# Activate virtual environment and start Odoo\n\
-source /opt/odoo/venv/bin/activate\n\
-exec /opt/odoo/src/odoo/odoo-bin -c /opt/odoo/odoo.conf "$@"' > /opt/odoo/start-odoo.sh \
-    && chmod +x /opt/odoo/start-odoo.sh
-
-CMD ["/opt/odoo/start-odoo.sh"]
+# Development stage inherits the entrypoint from dev-base
+# No need to override CMD as it uses the same odoo-bin
 
 # Production stage - stripped down version
 FROM dev-base AS production
@@ -187,36 +181,12 @@ USER odoo
 # Set environment for production
 ENV ODOO_ENV=production
 
-# Update configuration for production
-RUN sed -i 's/WORKERS:-0/WORKERS:-4/' /opt/odoo/odoo.conf.template \
-    && sed -i 's/LOG_LEVEL:-info/LOG_LEVEL:-warn/' /opt/odoo/odoo.conf.template
+# Override default environment variables for production
+ENV WORKERS=4 \
+    LOG_LEVEL=warn \
+    MAX_CRON_THREADS=1
 
-# Create startup script for production
-RUN echo '#!/bin/bash\n\
-\n\
-# Set default values for environment variables\n\
-export DB_HOST=${DB_HOST:-db}\n\
-export DB_PORT=${DB_PORT:-5432}\n\
-export DB_USER=${DB_USER:-odoo}\n\
-export DB_PASSWORD=${DB_PASSWORD:-}\n\
-export LOG_LEVEL=${LOG_LEVEL:-warn}\n\
-export WORKERS=${WORKERS:-4}\n\
-export MAX_CRON_THREADS=${MAX_CRON_THREADS:-1}\n\
-\n\
-# Generate config from template with environment variable substitution\n\
-envsubst < /opt/odoo/odoo.conf.template > /opt/odoo/odoo.conf\n\
-\n\
-# Set admin password from environment if provided\n\
-if [ -n "$ODOO_ADMIN_PASSWD" ]; then\n\
-    echo "admin_passwd = $ODOO_ADMIN_PASSWD" >> /opt/odoo/odoo.conf\n\
-fi\n\
-\n\
-# Activate virtual environment and start Odoo\n\
-source /opt/odoo/venv/bin/activate\n\
-exec /opt/odoo/src/odoo/odoo-bin -c /opt/odoo/odoo.conf "$@"' > /opt/odoo/start-odoo.sh \
-    && chmod +x /opt/odoo/start-odoo.sh
-
-CMD ["/opt/odoo/start-odoo.sh"]
+# Production uses the same entrypoint but with different defaults
 
 # Default to development stage
 FROM development
