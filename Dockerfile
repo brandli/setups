@@ -86,6 +86,12 @@ RUN /opt/odoo/venv/bin/pip install --upgrade pip setuptools wheel
 # Clone OCB 18.0
 RUN git clone --depth 1 --branch 18.0 https://github.com/OCA/OCB.git /opt/odoo/src/odoo
 
+# Clean up enterprise references and upgrade prompts
+RUN find /opt/odoo/src/odoo -name "*.py" -exec sed -i '/enterprise.*upgrade\|upgrade.*enterprise/d' {} \; && \
+    find /opt/odoo/src/odoo -name "*.js" -exec sed -i '/enterprise.*upgrade\|odoo-enterprise\/upgrade/d' {} \; && \
+    find /opt/odoo/src/odoo -name "*.xml" -exec sed -i '/enterprise_upgrade\|upgrade.*enterprise/d' {} \; && \
+    rm -rf /opt/odoo/src/odoo/addons/web/static/img/enterprise_upgrade.jpg 2>/dev/null || true
+
 # Install Python dependencies with gevent compatibility fix
 # First install everything except gevent, then install a compatible gevent version
 RUN sed '/^gevent==/d' /opt/odoo/src/odoo/requirements.txt > /tmp/requirements-no-gevent.txt && \
