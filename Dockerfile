@@ -92,6 +92,51 @@ RUN find /opt/odoo/src/odoo -name "*.py" -exec sed -i '/enterprise.*upgrade\|upg
     find /opt/odoo/src/odoo -name "*.xml" -exec sed -i '/enterprise_upgrade\|upgrade.*enterprise/d' {} \; && \
     rm -rf /opt/odoo/src/odoo/addons/web/static/img/enterprise_upgrade.jpg 2>/dev/null || true
 
+# Remove enterprise/paid modules that we don't want in a minimal installation
+RUN cd /opt/odoo/src/odoo/addons && \
+    rm -rf appointment* \
+    barcodes* \
+    calendar* \
+    crm* \
+    delivery* \
+    event* \
+    gamification* \
+    google_* \
+    hr* \
+    iot* \
+    l10n_* \
+    livechat* \
+    lunch* \
+    marketing* \
+    mass_mailing* \
+    microsoft_* \
+    mrp* \
+    payment_* \
+    point_of_sale* \
+    pos_* \
+    project* \
+    purchase* \
+    rating* \
+    repair* \
+    sale* \
+    sign* \
+    sms* \
+    snailmail* \
+    social* \
+    stock* \
+    survey* \
+    voip* \
+    website* \
+    helpdesk* \
+    quality* \
+    planning* \
+    timesheet* \
+    fleet* \
+    expense* \
+    documents* \
+    industry* \
+    2>/dev/null || true
+
 # Install Python dependencies with gevent compatibility fix
 # First install everything except gevent, then install a compatible gevent version
 RUN sed '/^gevent==/d' /opt/odoo/src/odoo/requirements.txt > /tmp/requirements-no-gevent.txt && \
