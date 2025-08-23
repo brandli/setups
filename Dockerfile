@@ -70,7 +70,8 @@ RUN groupadd -r odoo && useradd -r -g odoo -d /opt/odoo -s /bin/bash odoo \
     && mkdir -p /opt/odoo/logs \
     && mkdir -p /opt/odoo/custom-addons \
     && mkdir -p /var/log/odoo \
-    && chown -R odoo:odoo /opt/odoo /var/log/odoo
+    && chown -R odoo:odoo /opt/odoo /var/log/odoo \
+    && chmod 755 /var/log/odoo
 
 # Switch to odoo user
 USER odoo
@@ -94,18 +95,18 @@ RUN sed '/^gevent==/d' /opt/odoo/src/odoo/requirements.txt > /tmp/requirements-n
 # Create minimal Odoo configuration template
 RUN echo "[options]" > /opt/odoo/odoo.conf.template && \
     echo "# Database settings - override with environment variables" >> /opt/odoo/odoo.conf.template && \
-    echo "db_host = \${DB_HOST:-db}" >> /opt/odoo/odoo.conf.template && \
-    echo "db_port = \${DB_PORT:-5432}" >> /opt/odoo/odoo.conf.template && \
-    echo "db_user = \${DB_USER:-odoo}" >> /opt/odoo/odoo.conf.template && \
-    echo "db_password = \${DB_PASSWORD:-}" >> /opt/odoo/odoo.conf.template && \
+    echo "db_host = \$DB_HOST" >> /opt/odoo/odoo.conf.template && \
+    echo "db_port = \$DB_PORT" >> /opt/odoo/odoo.conf.template && \
+    echo "db_user = \$DB_USER" >> /opt/odoo/odoo.conf.template && \
+    echo "db_password = \$DB_PASSWORD" >> /opt/odoo/odoo.conf.template && \
     echo "" >> /opt/odoo/odoo.conf.template && \
     echo "# Odoo settings" >> /opt/odoo/odoo.conf.template && \
     echo "addons_path = /opt/odoo/src/odoo/addons,/opt/odoo/custom-addons" >> /opt/odoo/odoo.conf.template && \
     echo "data_dir = /opt/odoo/data" >> /opt/odoo/odoo.conf.template && \
     echo "logfile = /var/log/odoo/odoo.log" >> /opt/odoo/odoo.conf.template && \
-    echo "log_level = \${LOG_LEVEL:-info}" >> /opt/odoo/odoo.conf.template && \
-    echo "workers = \${WORKERS:-0}" >> /opt/odoo/odoo.conf.template && \
-    echo "max_cron_threads = \${MAX_CRON_THREADS:-1}" >> /opt/odoo/odoo.conf.template && \
+    echo "log_level = \$LOG_LEVEL" >> /opt/odoo/odoo.conf.template && \
+    echo "workers = \$WORKERS" >> /opt/odoo/odoo.conf.template && \
+    echo "max_cron_threads = \$MAX_CRON_THREADS" >> /opt/odoo/odoo.conf.template && \
     echo "" >> /opt/odoo/odoo.conf.template && \
     echo "# Security - DO NOT set admin password in config file" >> /opt/odoo/odoo.conf.template && \
     echo "# Set ODOO_ADMIN_PASSWD environment variable instead" >> /opt/odoo/odoo.conf.template && \
@@ -140,6 +141,15 @@ RUN /opt/odoo/venv/bin/pip install \
 
 # Create startup script for development
 RUN echo '#!/bin/bash\n\
+\n\
+# Set default values for environment variables\n\
+export DB_HOST=${DB_HOST:-db}\n\
+export DB_PORT=${DB_PORT:-5432}\n\
+export DB_USER=${DB_USER:-odoo}\n\
+export DB_PASSWORD=${DB_PASSWORD:-}\n\
+export LOG_LEVEL=${LOG_LEVEL:-info}\n\
+export WORKERS=${WORKERS:-0}\n\
+export MAX_CRON_THREADS=${MAX_CRON_THREADS:-1}\n\
 \n\
 # Generate config from template with environment variable substitution\n\
 envsubst < /opt/odoo/odoo.conf.template > /opt/odoo/odoo.conf\n\
@@ -183,6 +193,15 @@ RUN sed -i 's/WORKERS:-0/WORKERS:-4/' /opt/odoo/odoo.conf.template \
 
 # Create startup script for production
 RUN echo '#!/bin/bash\n\
+\n\
+# Set default values for environment variables\n\
+export DB_HOST=${DB_HOST:-db}\n\
+export DB_PORT=${DB_PORT:-5432}\n\
+export DB_USER=${DB_USER:-odoo}\n\
+export DB_PASSWORD=${DB_PASSWORD:-}\n\
+export LOG_LEVEL=${LOG_LEVEL:-warn}\n\
+export WORKERS=${WORKERS:-4}\n\
+export MAX_CRON_THREADS=${MAX_CRON_THREADS:-1}\n\
 \n\
 # Generate config from template with environment variable substitution\n\
 envsubst < /opt/odoo/odoo.conf.template > /opt/odoo/odoo.conf\n\

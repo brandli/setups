@@ -1,0 +1,25 @@
+{
+	"name": "OCB 18.0 Development",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "app",
+	"workspaceFolder": "/workspace",
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	"forwardPorts": [8069, 5432],
+	"portsAttributes": {
+		"8069": {
+			"label": "Odoo",
+			"onAutoForward": "notify"
+		},
+		"5432": {
+			"label": "PostgreSQL",
+			"onAutoForward": "silent"
+		}
+	},
+
+	// Set the default user to 'odoo' to match the container setup
+	"remoteUser": "odoo",
+
+	// Run commands after the container is started
+	"postStartCommand": "echo 'OCB Development Environment Ready! Database available at db:5432'"
+}
