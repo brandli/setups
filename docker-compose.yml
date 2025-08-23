@@ -1,15 +1,77 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  devcontainer:
-    build:
-      dockerfile: Dockerfile
-    
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
     volumes:
-      - ..:/workspace:cached
-      - "~/.gitconfig:/etc/gitconfig"
-      
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      - "3000:3000"
+      - "5432:5432"
 
-    command: sleep infinity
+  odoo:
+    build: 
+      context: .
+      target: development  # Change to 'production' for prod builds
+    depends_on:
+      - db
+    ports:
+      - "8069:8069"
+    volumes:
+      # Mount custom addons directory
+      - ./custom-addons:/opt/odoo/custom-addons
+      # Mount data directory for persistence
+      - odoo_data:/opt/odoo/data
+      # Mount logs for debugging
+      - odoo_logs:/var/log/odoo
+      # Development: mount source for live editing (optional)
+      # - ./src/odoo:/opt/odoo/src/odoo
+    environment:
+      # Database configuration
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=odoo
+      - DB_PASSWORD=odoo
+      # Odoo configuration
+      - ODOO_ADMIN_PASSWD=your-secure-admin-password
+      - LOG_LEVEL=info
+      - WORKERS=0
+      - MAX_CRON_THREADS=1
+      - ODOO_ENV=development
+    # Override for development with auto-reload
+    command: ["/opt/odoo/start-odoo.sh", "--dev=reload,qweb,werkzeug,xml"]
+
+  # Production variant (uncomment for production use)
+  # odoo-prod:
+  #   build: 
+  #     context: .
+  #     target: production
+  #   depends_on:
+  #     - db
+  #   ports:
+  #     - "8069:8069"
+  #   volumes:
+  #     - ./custom-addons:/opt/odoo/custom-addons:ro
+  #     - odoo_data:/opt/odoo/data
+  #     - odoo_logs:/var/log/odoo
+  #   environment:
+  #     # Database configuration
+  #     - DB_HOST=db
+  #     - DB_PORT=5432
+  #     - DB_USER=odoo
+  #     - DB_PASSWORD=odoo
+  #     # Odoo configuration - use strong passwords in production!
+  #     - ODOO_ADMIN_PASSWD=your-very-secure-admin-password
+  #     - LOG_LEVEL=warn
+  #     - WORKERS=4
+  #     - MAX_CRON_THREADS=2
+  #     - ODOO_ENV=production
+  #   restart: unless-stopped
+
+volumes:
+  postgres_data:
+  odoo_data:
+  odoo_logs:
