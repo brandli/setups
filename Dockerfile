@@ -125,7 +125,8 @@ if [ $# -eq 0 ]; then\n\
         --data-dir="/opt/odoo/data" \\\n\
         --log-level="$LOG_LEVEL" \\\n\
         --workers="$WORKERS" \\\n\
-        --max-cron-threads="$MAX_CRON_THREADS"\n\
+        --max-cron-threads="$MAX_CRON_THREADS" \\\n\
+        --database="${ODOO_DB:-odoo}"\n\
 fi\n\
 \n\
 # Execute the command\n\
