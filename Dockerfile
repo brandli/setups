@@ -55,6 +55,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install rtlcss for right-to-left languages
 RUN npm install -g rtlcss
 
+# Install BPMN.js for the BPMN module
+RUN npm install -g bpmn-js
+
 # Install wkhtmltopdf (specific version for headers/footers support)
 RUN wget -q https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.jammy_amd64.deb \
     && apt-get update \
