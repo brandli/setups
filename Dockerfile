@@ -19,7 +19,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     LANG=C.UTF-8 \
-    TZ=UTC
+    TZ=UTC \
+    # Add virtual environment to PATH
+    PATH="/opt/odoo/venv/bin:$PATH" \
+    # Set Python path for Odoo
+    PYTHONPATH="/opt/odoo/src/odoo"
 
 # Update and install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -96,6 +100,14 @@ RUN python3 -m venv venv
 # Activate venv and upgrade pip
 RUN /opt/odoo/venv/bin/pip install --upgrade pip setuptools wheel
 
+# Create wrapper scripts and links to make venv python the default
+USER root
+RUN echo '#!/bin/bash\nsource /opt/odoo/venv/bin/activate\nexec python "$@"' > /usr/local/bin/odoo-python && \
+    chmod +x /usr/local/bin/odoo-python && \
+    echo '#!/bin/bash\nsource /opt/odoo/venv/bin/activate\nexec /opt/odoo/src/odoo/odoo-bin "$@"' > /usr/local/bin/odoo-bin && \
+    chmod +x /usr/local/bin/odoo-bin
+USER odoo
+
 # Clone OCB 18.0
 RUN git clone --depth 1 --branch 18.0 https://github.com/OCA/OCB.git /opt/odoo/src/odoo
 
@@ -122,6 +134,9 @@ RUN cd /opt/odoo/src/odoo && \
     find addons -name "__manifest__.py" -exec sed -i '/base\.module_category_marketing/d' {} \; && \
     find addons -name "__manifest__.py" -exec sed -i '/base\.module_category_project/d' {} \; && \
     find addons -name "__manifest__.py" -exec sed -i '/base\.module_category_services/d' {} \; && \
+    # Remove hr_contract dependencies from other modules
+    find addons -name "__manifest__.py" -exec sed -i "s/'hr_contract'[,]*//g" {} \; && \
+    find addons -name "__manifest__.py" -exec sed -i 's/"hr_contract"[,]*//g' {} \; && \
     # Clean up any remaining enterprise references
     find . -name "*.py" -exec sed -i '/enterprise.*upgrade\|upgrade.*enterprise/d' {} \; && \
     find . -name "*.js" -exec sed -i '/enterprise.*upgrade\|odoo-enterprise\/upgrade/d' {} \; && \
@@ -140,6 +155,12 @@ RUN cd /opt/odoo/src/odoo/addons && \
     timesheet_grid* \
     project_timesheet* \
     sale_timesheet* \
+    # Remove other problematic HR modules
+    hr_attendance* \
+    hr_holidays* \
+    hr_expense* \
+    hr_recruitment* \
+    hr_appraisal* \
     # Remove upgrade-related modules
     enterprise_upgrade* \
     web_enterprise* \
@@ -194,7 +215,9 @@ export LOG_LEVEL=${LOG_LEVEL:-info}\n\
 export WORKERS=${WORKERS:-0}\n\
 export MAX_CRON_THREADS=${MAX_CRON_THREADS:-1}\n\
 \n\
-# Activate virtual environment\n\
+# Ensure virtual environment is activated\n\
+export PATH="/opt/odoo/venv/bin:$PATH"\n\
+export PYTHONPATH="/opt/odoo/src/odoo"\n\
 source /opt/odoo/venv/bin/activate\n\
 \n\
 # If no arguments provided, use default Odoo startup\n\
@@ -215,6 +238,12 @@ fi\n\
 # Execute the command\n\
 exec "$@"' > /opt/odoo/docker-entrypoint.sh \
     && chmod +x /opt/odoo/docker-entrypoint.sh
+
+# Create .bashrc to auto-activate virtual environment for interactive sessions
+RUN echo 'source /opt/odoo/venv/bin/activate' >> /opt/odoo/.bashrc && \
+    echo 'export PYTHONPATH="/opt/odoo/src/odoo"' >> /opt/odoo/.bashrc && \
+    echo 'alias python=python3' >> /opt/odoo/.bashrc && \
+    echo 'alias odoo-bin="/opt/odoo/src/odoo/odoo-bin"' >> /opt/odoo/.bashrc
 
 # Expose port
 EXPOSE 8069
