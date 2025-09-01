@@ -3,11 +3,12 @@
 #
 # FIXES APPLIED:
 # 1. Comprehensive Enterprise reference cleanup to prevent ModuleNotFoundError
-# 2. Removal of Enterprise module categories from base data files
-# 3. Explicit installation of babel and critical Python packages
-# 4. Validation steps to ensure clean Community-only installation
-# 5. Health checks to verify Odoo functionality
-# 6. Targeted removal of only problematic Enterprise modules
+# 2. Complete removal of Enterprise module categories and references
+# 3. Fixed base data files that reference non-existent Enterprise categories
+# 4. Explicit installation of babel and critical Python packages
+# 5. Validation steps to ensure clean Community-only installation
+# 6. Health checks to verify Odoo functionality
+# 7. Complete cleanup of problematic Enterprise module records
 #
 # This build ensures pure OCB Community functionality without Enterprise contamination
 
@@ -111,23 +112,43 @@ USER odoo
 # Clone OCB 18.0
 RUN git clone --depth 1 --branch 18.0 https://github.com/OCA/OCB.git /opt/odoo/src/odoo
 
-# Comprehensive Enterprise cleanup to ensure pure Community functionality
+# COMPREHENSIVE ENTERPRISE CLEANUP
+RUN cd /opt/odoo/src/odoo && \
+    echo "🧹 Starting comprehensive Enterprise reference cleanup..." && \
+    # 1. Remove ALL Enterprise module records that reference missing categories
+    sed -i '/<record.*id="base\.module_timesheet_grid">/,/<\/record>/d' addons/base/data/ir_module_module.xml && \
+    sed -i '/<record.*id="base\.module_project_timesheet">/,/<\/record>/d' addons/base/data/ir_module_module.xml && \
+    sed -i '/<record.*id="base\.module_sale_timesheet">/,/<\/record>/d' addons/base/data/ir_module_module.xml && \
+    sed -i '/<record.*id="base\.module_hr_timesheet">/,/<\/record>/d' addons/base/data/ir_module_module.xml && \
+    sed -i '/<record.*id="base\.module_timesheet_grid_holidays">/,/<\/record>/d' addons/base/data/ir_module_module.xml && \
+    sed -i '/<record.*id="base\.module_hr_timesheet_attendance">/,/<\/record>/d' addons/base/data/ir_module_module.xml && \
+    # 2. Remove any other modules that reference the problematic categories
+    sed -i '/<record.*module.*timesheet.*>/,/<\/record>/d' addons/base/data/ir_module_module.xml && \
+    sed -i '/ref="base\.module_category_services_timesheets"/d' addons/base/data/ir_module_module.xml && \
+    sed -i '/ref="base\.module_category_manufacturing"/d' addons/base/data/ir_module_module.xml && \
+    sed -i '/ref="base\.module_category_marketing"/d' addons/base/data/ir_module_module.xml && \
+    sed -i '/ref="base\.module_category_project"/d' addons/base/data/ir_module_module.xml && \
+    sed -i '/ref="base\.module_category_services"/d' addons/base/data/ir_module_module.xml && \
+    # 3. Remove Enterprise module categories entirely from base data
+    sed -i '/<record id="module_category_services_timesheets"/,/<\/record>/d' addons/base/data/ir_module_category_data.xml && \
+    sed -i '/<record id="module_category_manufacturing"/,/<\/record>/d' addons/base/data/ir_module_category_data.xml && \
+    sed -i '/<record id="module_category_marketing"/,/<\/record>/d' addons/base/data/ir_module_category_data.xml && \
+    sed -i '/<record id="module_category_project"/,/<\/record>/d' addons/base/data/ir_module_category_data.xml && \
+    sed -i '/<record id="module_category_services"/,/<\/record>/d' addons/base/data/ir_module_category_data.xml && \
+    # 4. Clean up any dangling references to enterprise modules in data files
+    find addons -name "*.xml" -exec sed -i '/module_category_services_timesheets/d' {} \; && \
+    find addons -name "*.xml" -exec sed -i '/module_category_manufacturing/d' {} \; && \
+    find addons -name "*.xml" -exec sed -i '/module_category_marketing/d' {} \; && \
+    find addons -name "*.xml" -exec sed -i '/module_category_project/d' {} \; && \
+    find addons -name "*.xml" -exec sed -i '/module_category_services/d' {} \; && \
+    echo "✅ Enterprise reference cleanup completed"
+
+# Additional cleanup for imports and python code
 RUN cd /opt/odoo/src/odoo && \
     # Remove Enterprise module references from resource calendar
     sed -i '/from odoo.addons.hr_work_entry_contract.models.hr_work_intervals import WorkIntervals/d' \
         addons/resource/models/resource_calendar.py && \
     sed -i '/WorkIntervals/d' addons/resource/models/resource_calendar.py && \
-    # Remove Enterprise module categories from base data
-    sed -i '/<record id="module_category_services_timesheets"/,/<\/record>/d' \
-        addons/base/data/ir_module_module.xml && \
-    sed -i '/<record id="module_category_manufacturing"/,/<\/record>/d' \
-        addons/base/data/ir_module_module.xml && \
-    sed -i '/<record id="module_category_marketing"/,/<\/record>/d' \
-        addons/base/data/ir_module_module.xml && \
-    sed -i '/<record id="module_category_project"/,/<\/record>/d' \
-        addons/base/data/ir_module_module.xml && \
-    sed -i '/<record id="module_category_services"/,/<\/record>/d' \
-        addons/base/data/ir_module_module.xml && \
     # Remove references to Enterprise categories in module manifest files
     find addons -name "__manifest__.py" -exec sed -i '/base\.module_category_services_timesheets/d' {} \; && \
     find addons -name "__manifest__.py" -exec sed -i '/base\.module_category_manufacturing/d' {} \; && \
@@ -189,18 +210,26 @@ RUN /opt/odoo/venv/bin/python -c "import babel; print('✅ Babel available:', ba
     /opt/odoo/venv/bin/python -c "import lxml; print('✅ XML processing available')" && \
     echo "✅ Critical packages validation successful"
 
-# Validate that Enterprise references have been properly removed
+# Enhanced validation to catch the specific issue you encountered
 RUN cd /opt/odoo/src/odoo && \
-    echo "🔍 Checking for remaining Enterprise references..." && \
-    # Check for hr_work_entry_contract references (but allow some false positives)
+    echo "🔍 Enhanced validation for Enterprise references..." && \
+    # Check for the specific problematic reference that caused your error
+    if grep -r "module_category_services_timesheets" addons/ 2>/dev/null; then \
+        echo "❌ Found problematic module_category_services_timesheets references" && exit 1; \
+    fi && \
+    # Check for timesheet_grid module references
+    if grep -r "timesheet_grid" addons/base/data/ 2>/dev/null; then \
+        echo "❌ Found timesheet_grid references in base data" && exit 1; \
+    fi && \
+    # Check for hr_work_entry_contract references
     if grep -r "from.*hr_work_entry_contract" addons/ 2>/dev/null; then \
         echo "❌ Found problematic hr_work_entry_contract import references" && exit 1; \
     fi && \
-    # Check for Enterprise category references  
-    if grep -r "module_category_services_timesheets" addons/ 2>/dev/null; then \
-        echo "❌ Found Enterprise category references" && exit 1; \
+    # Validate that the problematic XML records have been removed
+    if grep -A 10 -B 2 'id="base.module_timesheet_grid"' addons/base/data/ir_module_module.xml 2>/dev/null; then \
+        echo "❌ timesheet_grid module record still exists" && exit 1; \
     fi && \
-    echo "✅ Enterprise reference cleanup validated"
+    echo "✅ Enhanced Enterprise reference cleanup validated successfully"
 
 # Create a simple entrypoint script that handles environment variables but allows args
 RUN echo '#!/bin/bash\n\
